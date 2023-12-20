@@ -1,13 +1,14 @@
 import * as React from 'react';
 
 import { StyleSheet, View, Text } from 'react-native';
-import { multiply } from 'react-native-fetch-sse';
+import { fetchSSE } from 'react-native-fetch-sse';
 
 export default function App() {
   const [result, setResult] = React.useState<number | undefined>();
 
   React.useEffect(() => {
-    multiply(3, 7).then(setResult);
+    fetchSSE('', { method: 'POST' });
+    setResult(1);
   }, []);
 
   return (
