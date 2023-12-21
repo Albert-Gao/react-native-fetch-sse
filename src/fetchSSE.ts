@@ -1,10 +1,9 @@
 // @ts-expect-error
 import { fetch } from 'react-native-fetch-api';
 import { polyfill } from './poly-fills';
-import {
-  EventSourceParserStream,
-  type SSEEvent,
-} from './EventSourceParserStream';
+import { type SSEEvent } from './EventSourceParserStream';
+import { consumeStream } from './streams';
+import { StreamError } from './StreamError';
 
 polyfill();
 
@@ -13,40 +12,35 @@ export interface FetchSSEParams<EventType = any> {
 
   onStart?: () => void | Promise<void>;
   onMessage?: (data: SSEEvent<EventType>) => void | Promise<void>;
-  onError?: (response?: Response, error?: unknown) => void | Promise<void>;
+  onError?: (
+    error?: unknown,
+    meta?: { status: number; statusText: string }
+  ) => void | Promise<void>;
   onEnd?: () => void | Promise<void>;
 }
 
 export async function fetchSSE<EventType>(
   input: URL | RequestInfo,
   init?: RequestInit,
-  params: FetchSSEParams<EventType> = {}
+  {
+    onStart,
+    onEnd,
+    onError,
+    onMessage,
+    shouldParseJsonWhenOnMsg = false,
+  }: FetchSSEParams<EventType> = {}
 ) {
-  const { onStart, onEnd, onError, onMessage, shouldParseJsonWhenOnMsg } =
-    params;
-
   await onStart?.();
-  let response: Response | undefined = undefined;
 
   try {
-    response = await fetch(input, {
+    const response = await fetch(input, {
       ...init,
       reactNative: { textStreaming: true },
     });
 
-    if (!response?.ok) {
-      await onError?.(response);
-      return;
-    }
+    const stream = consumeStream(response!, shouldParseJsonWhenOnMsg);
 
-    const body = response.body;
-    if (!body) return;
-
-    const piped = body.pipeThrough(
-      new EventSourceParserStream({ shouldParseJsonWhenOnMsg })
-    );
-
-    const reader = piped.getReader();
+    const reader = stream.getReader();
 
     while (true) {
       const { value, done } = await reader.read();
@@ -54,8 +48,15 @@ export async function fetchSSE<EventType>(
 
       onMessage?.(value as SSEEvent<EventType>);
     }
-  } catch (e) {
-    await onError?.(response, e);
+  } catch (err) {
+    const isStreamError = err instanceof StreamError;
+
+    if (isStreamError) {
+      await onError?.(err, { status: err.status, statusText: err.statusText });
+      return;
+    }
+
+    await onError?.(err);
   }
 
   await onEnd?.();
