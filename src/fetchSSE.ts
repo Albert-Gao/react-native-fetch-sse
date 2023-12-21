@@ -1,9 +1,9 @@
 // @ts-expect-error
 import { fetch } from 'react-native-fetch-api';
 import { polyfill } from './poly-fills';
-import { type SSEEvent } from './EventSourceParserStream';
 import { consumeStream } from './streams';
-import { StreamError } from './StreamError';
+import { isResponseJson, isStreamError } from './utils';
+import { type SSEEvent } from './EventSourceParserStream';
 
 polyfill();
 
@@ -38,6 +38,16 @@ export async function fetchSSE<EventType>(
       reactNative: { textStreaming: true },
     });
 
+    if (isResponseJson(response)) {
+      const text = await response.text();
+
+      await onError?.(new Error(text), {
+        status: response.status,
+        statusText: response.statusText,
+      });
+      return;
+    }
+
     const stream = consumeStream(response!, shouldParseJsonWhenOnMsg);
 
     const reader = stream.getReader();
@@ -49,15 +59,13 @@ export async function fetchSSE<EventType>(
       onMessage?.(value as SSEEvent<EventType>);
     }
   } catch (err) {
-    const isStreamError = err instanceof StreamError;
-
-    if (isStreamError) {
+    if (isStreamError(err)) {
       await onError?.(err, { status: err.status, statusText: err.statusText });
       return;
     }
 
     await onError?.(err);
+  } finally {
+    await onEnd?.();
   }
-
-  await onEnd?.();
 }

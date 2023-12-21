@@ -1,4 +1,4 @@
-import { StreamError } from './StreamError';
+import { StreamError } from './utils';
 import { EventSourceParserStream } from './EventSourceParserStream';
 
 export function createEmptyReadableStream(): ReadableStream {
@@ -50,19 +50,19 @@ export function consumeStream(
     return errorStream('Response error: No response');
   }
 
-  if (!response.ok) {
-    if (!response.body) {
-      return errorStream('Response error: No response body');
-    }
+  if (!response.ok && !response.body) {
+    return errorStream('Response error: No response body');
+  }
 
+  if (!response.ok) {
     return errorEventStream(response);
   }
 
-  const body = response.body || createEmptyReadableStream();
+  if (!response.body) {
+    return createEmptyReadableStream();
+  }
 
-  const piped = body.pipeThrough(
+  return response.body.pipeThrough(
     new EventSourceParserStream({ shouldParseJsonWhenOnMsg })
   );
-
-  return piped;
 }
