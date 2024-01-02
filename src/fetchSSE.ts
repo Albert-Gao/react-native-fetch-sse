@@ -1,6 +1,6 @@
 // @ts-expect-error
 import { fetch } from 'react-native-fetch-api';
-import { polyfill } from './poly-fills';
+import { polyfill } from './poly-fills.native';
 import { consumeStream } from './streams';
 import { isResponseJson, isStreamError } from './utils';
 import { type SSEEvent } from './EventSourceParserStream';
@@ -11,11 +11,11 @@ export interface FetchSSEParams<EventType = any> {
   shouldParseJsonWhenOnMsg?: boolean;
 
   onStart?: () => void | Promise<void>;
-  onMessage?: (data: SSEEvent<EventType>) => void | Promise<void>;
+  onMessage?: (data: SSEEvent<EventType>) => void;
   onError?: (
     error?: unknown,
-    meta?: { status: number; statusText: string }
-  ) => void | Promise<void>;
+    meta?: { status: number; statusText: string },
+  ) => void;
   onEnd?: () => void | Promise<void>;
 }
 
@@ -28,7 +28,7 @@ export async function fetchSSE<EventType>(
     onError,
     onMessage,
     shouldParseJsonWhenOnMsg = false,
-  }: FetchSSEParams<EventType> = {}
+  }: FetchSSEParams<EventType> = {},
 ) {
   await onStart?.();
 
@@ -38,33 +38,38 @@ export async function fetchSSE<EventType>(
       reactNative: { textStreaming: true },
     });
 
-    if (isResponseJson(response)) {
+    if (!response.ok! && isResponseJson(response)) {
       const text = await response.text();
 
-      await onError?.(new Error(text), {
+      onError?.(new Error(text), {
         status: response.status,
         statusText: response.statusText,
       });
+
       return;
     }
 
     const stream = consumeStream(response!, shouldParseJsonWhenOnMsg);
 
-    const reader = stream.getReader();
+    let result: ReadableStreamReadResult<SSEEvent<EventType>> | null = null;
 
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-
-      onMessage?.(value as SSEEvent<EventType>);
+    while (!(result = await stream.getReader().read()).done) {
+      onMessage?.(result.value);
     }
+
+    // while (true) {
+    //   const { value, done } = await reader.read();
+    //   if (done) break;
+
+    //   onMessage?.(value as SSEEvent<EventType>);
+    // }
   } catch (err) {
     if (isStreamError(err)) {
-      await onError?.(err, { status: err.status, statusText: err.statusText });
+      onError?.(err, { status: err.status, statusText: err.statusText });
       return;
     }
 
-    await onError?.(err);
+    onError?.(err);
   } finally {
     await onEnd?.();
   }

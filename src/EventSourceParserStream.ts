@@ -11,7 +11,7 @@ export interface SSEEvent<EventType = any> {
 
 function parseSSEEvent(
   sseString: string,
-  shouldParseJsonWhenOnMsg = false
+  shouldParseJsonWhenOnMsg = false,
 ): SSEEvent {
   const sseEvent: SSEEvent = {};
 
@@ -48,7 +48,7 @@ export class EventSourceParserStream extends TransformStream<
   constructor(
     options: { shouldParseJsonWhenOnMsg?: boolean } = {
       shouldParseJsonWhenOnMsg: false,
-    }
+    },
   ) {
     super({
       transform(chunk, controller) {

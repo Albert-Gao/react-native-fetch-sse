@@ -34,7 +34,7 @@ function errorEventStream(response: Response) {
       if (!done) {
         const errorText = new TextDecoder().decode(value);
         controller.error(
-          new StreamError(errorText, response.status, response.statusText)
+          new StreamError(errorText, response.status, response.statusText),
         );
       }
     },
@@ -44,7 +44,7 @@ function errorEventStream(response: Response) {
 /** this function handles the 200 and non-200 cases, and make it all returns a stream */
 export function consumeStream(
   response: Response,
-  shouldParseJsonWhenOnMsg: boolean
+  shouldParseJsonWhenOnMsg: boolean,
 ) {
   if (!response) {
     return errorStream('Response error: No response');
@@ -63,6 +63,6 @@ export function consumeStream(
   }
 
   return response.body.pipeThrough(
-    new EventSourceParserStream({ shouldParseJsonWhenOnMsg })
+    new EventSourceParserStream({ shouldParseJsonWhenOnMsg }),
   );
 }
