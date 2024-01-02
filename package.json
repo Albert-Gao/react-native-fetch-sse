@@ -138,8 +138,9 @@
   "eslintIgnore": [
     "node_modules/",
     "lib/",
+    "example/",
     "*.md",
-    "babel.config.js"
+    "**/babel.config.js"
   ],
   "prettier": {
     "quoteProps": "consistent",
