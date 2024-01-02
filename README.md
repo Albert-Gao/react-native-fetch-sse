@@ -1,8 +1,8 @@
 # react-native-fetch-sse
 
-consume text-stream response with standard fetch.
+consume text-stream response with standard fetch, works with any custom server and OpenAI API.
 
-- works with `fetch()`, so you can pass headers, different Http methods, `AbortController`, etc.
+- Implemented using native `fetch()`, so you can pass headers, different Http methods, `AbortController`, etc.
 - minimal implementation, great for web only projects also
 - works on React Native / Web
 - included all polyfills (only for Native, web doesn't need them)
